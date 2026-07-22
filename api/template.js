@@ -17,6 +17,7 @@ const {
   toTitle,
   toRichText,
   toMultiSelect,
+  toCheckbox,
   toDateNow,
   toRelation,
 } = require('../lib/notion');
@@ -42,11 +43,11 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
-      const { id, name, body, requiredVars = [], editor, expectedLastEditedTime } = req.body || {};
+      const { id, name, body, requiredVars = [], editor, expectedLastEditedTime, active } = req.body || {};
 
-      if (!id || !name || !body || !editor || !expectedLastEditedTime) {
+      if (!id || !editor || !expectedLastEditedTime) {
         return res.status(400).json({
-          error: 'id, name, body, editor, expectedLastEditedTime는 모두 필수입니다.',
+          error: 'id, editor, expectedLastEditedTime는 필수입니다.',
         });
       }
 
@@ -58,6 +59,19 @@ module.exports = async function handler(req, res) {
           error: '다른 팀원이 먼저 수정했습니다. 최신 내용을 다시 불러온 뒤 재수정해주세요.',
           latest: formatTemplate(currentPage),
         });
+      }
+
+      // "목록에서 숨기기 / 다시 보이기"만 하는 경우 (내용 수정 아님, 이력에 안 남김)
+      if (typeof active === 'boolean' && name === undefined && body === undefined) {
+        const updated = await updatePage(id, {
+          사용여부: toCheckbox(active),
+          최종수정자: toRichText(editor),
+        });
+        return res.status(200).json({ template: formatTemplate(updated) });
+      }
+
+      if (!name || !body) {
+        return res.status(400).json({ error: 'name, body는 필수입니다.' });
       }
 
       const before = {
