@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CS 메시지 자동생성 도구</title>
+<style>
+  :root{
+    --bg:#F6F7F6;
+    --panel:#FFFFFF;
+    --ink:#1C2321;
+    --ink-soft:#5B655F;
+    --line:#DDE3DF;
+    --accent:#0F6E5C;
+    --accent-soft:#E4F1EC;
+    --danger:#B3452C;
+    --danger-soft:#F7E9E4;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Pretendard', -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+    line-height:1.55;
+  }
+  header{
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    padding:18px 28px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  header h1{
+    font-size:18px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  header .sub{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .who{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13.5px;
+  }
+  select, input[type=text], textarea{
+    font-family:inherit;
+    font-size:14px;
+    padding:9px 11px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+  }
+  select:focus, input:focus, textarea:focus{
+    outline:2px solid var(--accent);
+    outline-offset:1px;
+  }
+  main{
+    max-width:920px;
+    margin:0 auto;
+    padding:28px 20px 80px;
+  }
+  .tabs{
+    display:flex;
+    gap:4px;
+    margin-bottom:20px;
+    border-bottom:1px solid var(--line);
+  }
+  .tab-btn{
+    padding:10px 16px;
+    border:none;
+    background:none;
+    font-size:14px;
+    font-weight:600;
+    color:var(--ink-soft);
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    margin-bottom:-1px;
+  }
+  .tab-btn.active{
+    color:var(--accent);
+    border-bottom-color:var(--accent);
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px;
+    margin-bottom:16px;
+  }
+  .panel h2{
+    font-size:15px;
+    margin:0 0 14px;
+  }
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .field{ margin-bottom:14px; }
+  .field.required label::after{
+    content:" *";
+    color:var(--danger);
+  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .row > *{ flex:1; min-width:180px; }
+  button.primary{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:10px 18px;
+    border-radius:8px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  button.primary:disabled{
+    background:#B7C4BF;
+    cursor:not-allowed;
+  }
+  button.ghost{
+    background:none;
+    border:1px solid var(--line);
+    padding:9px 14px;
+    border-radius:8px;
+    font-size:13.5px;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  button.ghost:hover{ background:var(--bg); }
+  button.link{
+    background:none;
+    border:none;
+    color:var(--accent);
+    font-size:13px;
+    cursor:pointer;
+    padding:2px 0;
+    text-decoration:underline;
+  }
+  .result-box{
+    white-space:pre-wrap;
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:16px;
+    font-size:14px;
+    min-height:80px;
+  }
+  .missing-tag{
+    display:inline-block;
+    background:var(--danger-soft);
+    color:var(--danger);
+    font-size:12px;
+    padding:2px 8px;
+    border-radius:6px;
+    margin:2px 4px 0 0;
+  }
+  .tpl-list-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 4px;
+    border-bottom:1px solid var(--line);
+    gap:12px;
+  }
+  .tpl-list-item:last-child{ border-bottom:none; }
+  .tpl-name{ font-weight:600; font-size:14px; }
+  .tpl-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .tpl-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .checkbox-group{ display:flex; flex-wrap:wrap; gap:10px; }
+  .checkbox-chip{
+    display:flex; align-items:center; gap:6px;
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:6px 12px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .checkbox-chip input{ margin:0; }
+  .banner{
+    padding:10px 14px;
+    border-radius:8px;
+    font-size:13px;
+    margin-bottom:14px;
+  }
+  .banner.warn{ background:var(--danger-soft); color:var(--danger); }
+  .banner.ok{ background:var(--accent-soft); color:var(--accent); }
+  .empty{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    padding:12px 4px;
+  }
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(20,25,22,0.45);
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:40px 16px; overflow-y:auto; z-index:50;
+  }
+  .modal{
+    background:#fff; border-radius:var(--radius);
+    max-width:640px; width:100%; padding:24px;
+  }
+  .modal-head{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:16px;
+  }
+  .version-item{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    margin-bottom:10px;
+  }
+  .version-item .meta{ font-size:12px; color:var(--ink-soft); margin-bottom:6px; }
+  .version-item .body-preview{ font-size:13px; white-space:pre-wrap; margin-bottom:8px; }
+  .hint{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>CS 메시지 자동생성 도구</h1>
+    <div class="sub">템플릿을 고르고 값을 입력하면 완성된 안내 문장이 만들어져요</div>
+  </div>
+  <div class="who">
+    <label style="margin:0;">내 이름</label>
+    <select id="editorSelect"></select>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="make">메시지 만들기</button>
+    <button class="tab-btn" data-tab="manage">템플릿 관리</button>
+  </div>
+
+  <!-- ── 탭 1: 메시지 만들기 ── -->
+  <div id="tab-make">
+    <div class="panel">
+      <h2>1. 템플릿 선택</h2>
+      <select id="templateSelect" style="width:100%;">
+        <option value="">템플릿을 선택하세요</option>
+      </select>
+    </div>
+
+    <div class="panel" id="varsPanel" style="display:none;">
+      <h2>2. 값 입력</h2>
+      <div id="varsForm"></div>
+    </div>
+
+    <div class="panel" id="resultPanel" style="display:none;">
+      <h2>3. 완성된 메시지</h2>
+      <div id="missingList"></div>
+      <div class="result-box" id="resultBox"></div>
+      <div style="margin-top:12px;">
+        <button class="primary" id="copyBtn" disabled>복사하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 탭 2: 템플릿 관리 ── -->
+  <div id="tab-manage" style="display:none;">
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h2 style="margin:0;">템플릿 목록</h2>
+        <button class="primary" id="newTemplateBtn">+ 새 템플릿</button>
+      </div>
+      <div id="templateList"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 템플릿 생성/수정 모달 -->
+<div class="modal-bg" id="editModalBg" style="display:none;">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="editModalTitle" style="margin:0;">새 템플릿</h2>
+      <button class="ghost" id="closeEditModal">닫기</button>
+    </div>
+    <div id="editModalBanner"></div>
+    <div class="field">
+      <label>템플릿명</label>
+      <input type="text" id="editName" style="width:100%;" />
+    </div>
+    <div class="field">
+      <label>템플릿 본문</label>
+      <textarea id="editBody" rows="6" style="width:100%;"></textarea>
+      <div class="hint">변수는 <code>{{고객명}}</code> 처럼 이중 중괄호 안에 변수명을 그대로 적으세요. 아래 변수 목록에 있는 이름과 똑같이 적어야 인식돼요.</div>
+    </div>
+    <div class="field">
+      <label>필수 변수 (체크한 값이 비어있으면 복사 불가)</label>
+      <div class="checkbox-group" id="requiredVarsGroup"></div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:18px;">
+      <button class="primary" id="saveTemplateBtn">저장</button>
+      <button class="ghost" id="showHistoryBtn" style="display:none;">수정 이력 보기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 이력 모달 -->
+<div class="modal-bg" id="historyModalBg" style="display:none;">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 style="margin:0;">수정 이력</h2>
+      <button class="ghost" id="closeHistoryModal">닫기</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
+const API = {
+  templates: '/api/templates',
+  template: '/api/template',
+  versions: '/api/versions',
+  restore: '/api/restore',
+  variables: '/api/variables',
+  users: '/api/users',
+};
+
+let state = {
+  users: [],
+  variables: [], // {key,label}
+  templates: [],
+  editingTemplate: null, // 현재 관리탭에서 수정중인 템플릿 (lastEditedTime 포함)
+};
+
+// ── 공통 유틸 ──
+function labelSet(){
+  return state.variables.map(v => v.label);
+}
+function extractVarNames(body){
+  const found = [];
+  const re = /\{\{\s*([^}]+?)\s*\}\}/g;
+  let m;
+  while ((m = re.exec(body)) !== null) {
+    if (!found.includes(m[1])) found.push(m[1]);
+  }
+  return found;
+}
+function getEditor(){
+  return document.getElementById('editorSelect').value;
+}
+function escapeHtml(s){
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── 초기 로딩 ──
+async function init(){
+  const [usersRes, varsRes, tplRes] = await Promise.all([
+    fetch(API.users).then(r => r.json()),
+    fetch(API.variables).then(r => r.json()),
+    fetch(API.templates).then(r => r.json()),
+  ]);
+  state.users = usersRes.users || [];
+  state.variables = varsRes.variables || [];
+  state.templates = tplRes.templates || [];
+
+  renderEditorSelect();
+  renderTemplateSelect();
+  renderTemplateList();
+  renderRequiredVarsCheckboxes();
+}
+
+function renderEditorSelect(){
+  const sel = document.getElementById('editorSelect');
+  sel.innerHTML = '<option value="">선택</option>' +
+    state.users.map(u => `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`).join('');
+  const saved = localStorage.getItem('cs_tool_editor');
+  if (saved && state.users.some(u => u.name === saved)) sel.value = saved;
+  sel.addEventListener('change', () => localStorage.setItem('cs_tool_editor', sel.value));
+}
+
+// ── 탭 전환 ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-make').style.display = btn.dataset.tab === 'make' ? 'block' : 'none';
+    document.getElementById('tab-manage').style.display = btn.dataset.tab === 'manage' ? 'block' : 'none';
+  });
+});
+
+// ══════════════════ 탭 1: 메시지 만들기 ══════════════════
+function renderTemplateSelect(){
+  const sel = document.getElementById('templateSelect');
+  sel.innerHTML = '<option value="">템플릿을 선택하세요</option>' +
+    state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+}
+
+document.getElementById('templateSelect').addEventListener('change', (e) => {
+  const tpl = state.templates.find(t => t.id === e.target.value);
+  if (!tpl) {
+    document.getElementById('varsPanel').style.display = 'none';
+    document.getElementById('resultPanel').style.display = 'none';
+    return;
+  }
+  renderVarsForm(tpl);
+});
+
+function renderVarsForm(tpl){
+  const varNames = extractVarNames(tpl.body);
+  const form = document.getElementById('varsForm');
+  form.innerHTML = varNames.map(name => {
+    const isRequired = tpl.requiredVars.includes(name);
+    return `
+      <div class="field ${isRequired ? 'required' : ''}">
+        <label>${escapeHtml(name)}</label>
+        <input type="text" style="width:100%;" data-var="${escapeHtml(name)}" />
+      </div>
+    `;
+  }).join('') || '<div class="empty">이 템플릿에는 입력할 변수가 없어요.</div>';
+
+  document.getElementById('varsPanel').style.display = 'block';
+  document.getElementById('resultPanel').style.display = 'block';
+
+  form.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => updateResult(tpl, varNames));
+  });
+  updateResult(tpl, varNames);
+}
+
+function updateResult(tpl, varNames){
+  const form = document.getElementById('varsForm');
+  const values = {};
+  varNames.forEach(name => {
+    const inp = form.querySelector(`input[data-var="${CSS.escape(name)}"]`);
+    values[name] = inp ? inp.value.trim() : '';
+  });
+
+  let result = tpl.body;
+  varNames.forEach(name => {
+    const re = new RegExp(`\\{\\{\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'g');
+    result = result.replace(re, values[name]);
+  });
+
+  const missing = tpl.requiredVars.filter(name => varNames.includes(name) && !values[name]);
+  const missingEl = document.getElementById('missingList');
+  missingEl.innerHTML = missing.length
+    ? `<div class="banner warn">필수값이 비어있어요: ${missing.map(m => `<span class="missing-tag">${escapeHtml(m)}</span>`).join('')}</div>`
+    : '';
+
+  document.getElementById('resultBox').textContent = result;
+  const copyBtn = document.getElementById('copyBtn');
+  copyBtn.disabled = missing.length > 0;
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(result);
+    copyBtn.textContent = '복사됨!';
+    setTimeout(() => copyBtn.textContent = '복사하기', 1200);
+  };
+}
+
+// ══════════════════ 탭 2: 템플릿 관리 ══════════════════
+function renderTemplateList(){
+  const list = document.getElementById('templateList');
+  if (!state.templates.length) {
+    list.innerHTML = '<div class="empty">등록된 템플릿이 없어요. "+ 새 템플릿"으로 만들어보세요.</div>';
+    return;
+  }
+  list.innerHTML = state.templates.map(t => `
+    <div class="tpl-list-item">
+      <div>
+        <div class="tpl-name">${escapeHtml(t.name)}</div>
+        <div class="tpl-meta">최종수정: ${escapeHtml(t.lastEditor || '-')} · ${t.lastEditedTime ? new Date(t.lastEditedTime).toLocaleString('ko-KR') : '-'}</div>
+      </div>
+      <div class="tpl-actions">
+        <button class="ghost" onclick="openEditModal('${t.id}')">수정</button>
+        <button class="ghost" onclick="openHistoryModal('${t.id}')">이력</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRequiredVarsCheckboxes(checkedNames = []){
+  const group = document.getElementById('requiredVarsGroup');
+  group.innerHTML = state.variables.map(v => `
+    <label class="checkbox-chip">
+      <input type="checkbox" value="${escapeHtml(v.label)}" ${checkedNames.includes(v.label) ? 'checked' : ''} />
+      ${escapeHtml(v.label)}
+    </label>
+  `).join('');
+}
+
+document.getElementById('newTemplateBtn').addEventListener('click', () => {
+  state.editingTemplate = null;
+  document.getElementById('editModalTitle').textContent = '새 템플릿';
+  document.getElementById('editName').value = '';
+  document.getElementById('editBody').value = '';
+  document.getElementById('editModalBanner').innerHTML = '';
+  document.getElementById('showHistoryBtn').style.display = 'none';
+  renderRequiredVarsCheckboxes([]);
+  document.getElementById('editModalBg').style.display = 'flex';
+});
+
+window.openEditModal = function(id){
+  const tpl = state.templates.find(t => t.id === id);
+  if (!tpl) return;
+  state.editingTemplate = tpl;
+  document.getElementById('editModalTitle').textContent = '템플릿 수정';
+  document.getElementById('editName').value = tpl.name;
+  document.getElementById('editBody').value = tpl.body;
+  document.getElementById('editModalBanner').innerHTML = '';
+  document.getElementById('showHistoryBtn').style.display = 'inline-block';
+  document.getElementById('showHistoryBtn').onclick = () => openHistoryModal(tpl.id);
+  renderRequiredVarsCheckboxes(tpl.requiredVars);
+  document.getElementById('editModalBg').style.display = 'flex';
+};
+
+document.getElementById('closeEditModal').addEventListener('click', () => {
+  document.getElementById('editModalBg').style.display = 'none';
+});
+
+document.getElementById('saveTemplateBtn').addEventListener('click', async () => {
+  const editor = getEditor();
+  if (!editor) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
+
+  const name = document.getElementById('editName').value.trim();
+  const body = document.getElementById('editBody').value.trim();
+  const requiredVars = Array.from(document.querySelectorAll('#requiredVarsGroup input:checked')).map(i => i.value);
+
+  if (!name || !body) { alert('템플릿명과 본문을 입력해주세요.'); return; }
+
+  const btn = document.getElementById('saveTemplateBtn');
+  btn.disabled = true;
+
+  try {
+    if (state.editingTemplate) {
+      const res = await fetch(API.template, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          id: state.editingTemplate.id,
+          name, body, requiredVars, editor,
+          expectedLastEditedTime: state.editingTemplate.lastEditedTime,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 409) {
+        document.getElementById('editModalBanner').innerHTML =
+          `<div class="banner warn">다른 팀원이 먼저 수정했어요. 최신 내용을 다시 불러왔어요. 확인 후 다시 저장해주세요.</div>`;
+        state.editingTemplate = data.latest;
+        document.getElementById('editName').value = data.latest.name;
+        document.getElementById('editBody').value = data.latest.body;
+        renderRequiredVarsCheckboxes(data.latest.requiredVars);
+        btn.disabled = false;
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || '저장 실패');
+    } else {
+      const res = await fetch(API.templates, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ name, body, requiredVars, editor }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '저장 실패');
+    }
+
+    document.getElementById('editModalBg').style.display = 'none';
+    await refreshTemplates();
+  } catch (err) {
+    alert('오류: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function refreshTemplates(){
+  const data = await fetch(API.templates).then(r => r.json());
+  state.templates = data.templates || [];
+  renderTemplateSelect();
+  renderTemplateList();
+}
+
+// ── 이력 모달 ──
+window.openHistoryModal = async function(templateId){
+  document.getElementById('historyModalBg').style.display = 'flex';
+  document.getElementById('historyList').innerHTML = '<div class="empty">불러오는 중...</div>';
+
+  const data = await fetch(`${API.versions}?templateId=${templateId}`).then(r => r.json());
+  const versions = data.versions || [];
+
+  if (!versions.length) {
+    document.getElementById('historyList').innerHTML = '<div class="empty">아직 수정 이력이 없어요.</div>';
+    return;
+  }
+
+  document.getElementById('historyList').innerHTML = versions.map(v => `
+    <div class="version-item">
+      <div class="meta">
+        ${v.editedAt ? new Date(v.editedAt).toLocaleString('ko-KR') : '-'} · ${escapeHtml(v.editor || '-')}
+        ${v.wasRestored ? ' · <strong>복구됨</strong>' : ''}
+      </div>
+      <div class="body-preview">${escapeHtml(v.afterBody)}</div>
+      <button class="link" onclick="restoreVersion('${v.id}', '${templateId}')">이 버전으로 복구</button>
+    </div>
+  `).join('');
+};
+
+document.getElementById('closeHistoryModal').addEventListener('click', () => {
+  document.getElementById('historyModalBg').style.display = 'none';
+});
+
+window.restoreVersion = async function(versionId, templateId){
+  const editor = getEditor();
+  if (!editor) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
+  if (!confirm('이 버전으로 되돌릴까요? 현재 내용은 이력에 남아있어 나중에 다시 복구할 수 있어요.')) return;
+
+  const res = await fetch(API.restore, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ versionId, editor }),
+  });
+  const data = await res.json();
+  if (!res.ok) { alert('복구 실패: ' + data.error); return; }
+
+  document.getElementById('historyModalBg').style.display = 'none';
+  await refreshTemplates();
+  alert('복구되었어요.');
+};
+
+init();
+</script>
+</body>
+</html>
