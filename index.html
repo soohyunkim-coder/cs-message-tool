@@ -48,9 +48,37 @@
   .who{
     display:flex;
     align-items:center;
-    gap:8px;
-    font-size:13.5px;
+    gap:10px;
+    font-size:14px;
+    background:var(--accent-soft);
+    border:1.5px solid var(--accent);
+    border-radius:9px;
+    padding:8px 14px;
   }
+  .who label{
+    margin:0;
+    font-weight:700;
+    color:var(--accent);
+    white-space:nowrap;
+  }
+  .who select{
+    font-weight:600;
+    border-color:var(--accent);
+    min-width:120px;
+  }
+  .lock-bg{
+    position:fixed; inset:0; background:rgba(20,25,22,0.55);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px; z-index:100;
+  }
+  .lock-card{
+    background:#fff; border-radius:var(--radius);
+    max-width:380px; width:100%; padding:28px 24px;
+    text-align:center;
+  }
+  .lock-card h2{ font-size:17px; margin:0 0 8px; }
+  .lock-card p{ font-size:13.5px; color:var(--ink-soft); margin:0 0 18px; }
+  .lock-card select{ width:100%; margin-bottom:14px; text-align:center; }
   select, input[type=text], textarea{
     font-family:inherit;
     font-size:14px;
@@ -233,7 +261,7 @@
     <div class="sub">템플릿을 고르고 값을 입력하면 완성된 안내 문장이 만들어져요</div>
   </div>
   <div class="who">
-    <label style="margin:0;">내 이름</label>
+    <label>👤 접속자 </label>
     <select id="editorSelect"></select>
   </div>
 </header>
@@ -280,6 +308,18 @@
   </div>
 </main>
 
+<!-- 첫 진입 시 이름 선택 강제 잠금 화면 -->
+<div class="lock-bg" id="lockBg" style="display:none;">
+  <div class="lock-card">
+    <h2>👤 시작하기 전에</h2>
+    <p>이 도구에서 만든 모든 수정 기록에 아래에서 고른 이름이 남아요.<br/>본인 이름을 선택해주세요.</p>
+    <select id="lockEditorSelect"></select>
+    <div>
+      <button class="primary" id="lockConfirmBtn" style="width:100%;">시작하기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 템플릿 생성/수정 모달 -->
 <div class="modal-bg" id="editModalBg" style="display:none;">
   <div class="modal">
@@ -295,12 +335,12 @@
     <div class="field">
       <label>템플릿 본문</label>
       <textarea id="editBody" rows="6" style="width:100%;"></textarea>
-      <div class="hint">변수는 <code>{{고객명}}</code> 처럼 이중 중괄호 안에 변수명을 그대로 적으세요. 아래 "변수 넣기" 버튼을 쓰면 오타 없이 바로 넣을 수 있어요.</div>
+      <div class="hint">변수는 <code>{{고객명}}</code> 처럼 이중 중괄호 안에 변수명을 그대로 적으세요. 아래 "변수 넣기" 버튼을 쓰면 오타 없이 바로 넣을 수 있어요. (상품명은 값이 자동으로 <code>[대괄호]</code>로 감싸져서 나가요 — 본문엔 그냥 <code>{{상품명}}</code>이라고만 적으면 돼요)</div>
     </div>
     <div class="field">
       <label>변수 넣기</label>
       <div class="checkbox-group" id="varInsertButtons"></div>
-      <div class="hint">버튼을 누르면 본문 커서 위치에 변수가 바로 삽입돼요.</div>
+      <div class="hint">버튼을 누르면 본문 커서 위치에 변수가 바로 삽입돼요. 본문에 들어간 변수는 전부 필수값이에요 — 비어있으면 복사할 수 없어요.</div>
     </div>
     <div style="display:flex; gap:8px; margin-top:18px;">
       <button class="primary" id="saveTemplateBtn">저장</button>
@@ -376,11 +416,37 @@ async function init(){
 
 function renderEditorSelect(){
   const sel = document.getElementById('editorSelect');
-  sel.innerHTML = '<option value="">선택</option>' +
+  const optionsHtml = '<option value="">선택</option>' +
     state.users.map(u => `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`).join('');
+  sel.innerHTML = optionsHtml;
+
+  const lockSel = document.getElementById('lockEditorSelect');
+  lockSel.innerHTML = optionsHtml;
+
   const saved = localStorage.getItem('cs_tool_editor');
-  if (saved && state.users.some(u => u.name === saved)) sel.value = saved;
-  sel.addEventListener('change', () => localStorage.setItem('cs_tool_editor', sel.value));
+  if (saved && state.users.some(u => u.name === saved)) {
+    sel.value = saved;
+  } else {
+    document.getElementById('lockBg').style.display = 'flex';
+  }
+
+  sel.addEventListener('change', () => {
+    const name = sel.value;
+    if (!name) return;
+    if (confirm(`${name}님, 맞으신가요?`)) {
+      localStorage.setItem('cs_tool_editor', name);
+    } else {
+      sel.value = localStorage.getItem('cs_tool_editor') || '';
+    }
+  });
+
+  document.getElementById('lockConfirmBtn').addEventListener('click', () => {
+    if (!lockSel.value) { alert('이름을 선택해주세요.'); return; }
+    if (!confirm(`${lockSel.value}님, 맞으신가요?`)) return;
+    sel.value = lockSel.value;
+    localStorage.setItem('cs_tool_editor', lockSel.value);
+    document.getElementById('lockBg').style.display = 'none';
+  });
 }
 
 // ── 탭 전환 ──
@@ -506,7 +572,7 @@ window.insertVarAtCursor = function(label){
 };
 
 document.getElementById('newTemplateBtn').addEventListener('click', () => {
-  if (!getEditor()) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
+  if (!getEditor()) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
   state.editingTemplate = null;
   document.getElementById('editModalTitle').textContent = '새 템플릿';
   document.getElementById('editName').value = '';
@@ -517,7 +583,7 @@ document.getElementById('newTemplateBtn').addEventListener('click', () => {
 });
 
 window.openEditModal = function(id){
-  if (!getEditor()) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
+  if (!getEditor()) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
   const tpl = state.templates.find(t => t.id === id);
   if (!tpl) return;
   state.editingTemplate = tpl;
@@ -536,7 +602,7 @@ document.getElementById('closeEditModal').addEventListener('click', () => {
 
 document.getElementById('saveTemplateBtn').addEventListener('click', async () => {
   const editor = getEditor();
-  if (!editor) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
+  if (!editor) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
 
   const name = document.getElementById('editName').value.trim();
   const body = document.getElementById('editBody').value.trim();
@@ -597,7 +663,7 @@ async function refreshTemplates(){
 
 // ── 이력 모달 ──
 window.openHistoryModal = async function(templateId){
-  if (!getEditor()) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
+  if (!getEditor()) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
   document.getElementById('historyModalBg').style.display = 'flex';
   document.getElementById('historyList').innerHTML = '<div class="empty">불러오는 중...</div>';
 
@@ -627,7 +693,7 @@ document.getElementById('closeHistoryModal').addEventListener('click', () => {
 
 window.restoreVersion = async function(versionId, templateId){
   const editor = getEditor();
-  if (!editor) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
+  if (!editor) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
   if (!confirm('이 버전으로 되돌릴까요? 현재 내용은 이력에 남아있어 나중에 다시 복구할 수 있어요.')) return;
 
   const res = await fetch(API.restore, {
