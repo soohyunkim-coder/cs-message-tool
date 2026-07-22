@@ -261,7 +261,7 @@
     <div class="sub">템플릿을 고르고 값을 입력하면 완성된 안내 문장이 만들어져요</div>
   </div>
   <div class="who">
-    <label>👤 접속자 </label>
+    <label>👤 내 이름</label>
     <select id="editorSelect"></select>
   </div>
 </header>
@@ -369,6 +369,16 @@ const API = {
   variables: '/api/variables',
   users: '/api/users',
 };
+
+// 택배사는 자유 입력 대신 드롭다운으로 선택 (목록에 없으면 "직접입력" 선택)
+const COURIER_GROUPS = [
+  { label: '일반 택배사', options: [
+    'CJ대한통운', '건영택배', '대신택배', '두발히어로', '로젠택배', '롯데택배', '우리택배', '우체국택배', '일양로지스',
+    '천일택배', '한진택배', '합동택배', '홈픽택배']},
+  { label: '화물/특수운송', options: ['경동화물', '자체배송(화물)', '퀵배송'] },
+  { label: '편의점 택배', options: ['CU 편의점택배', 'GS25 편의점택배'] },
+
+];
 
 let state = {
   users: [],
@@ -481,6 +491,23 @@ function renderVarsForm(tpl){
   const form = document.getElementById('varsForm');
   form.innerHTML = varNames.map(name => {
     const isRequired = tpl.requiredVars.includes(name);
+    if (name === '택배사') {
+      return `
+        <div class="field ${isRequired ? 'required' : ''}">
+          <label>${escapeHtml(name)}</label>
+          <select style="width:100%;" data-var="택배사">
+            <option value="">선택하세요</option>
+            <option value="__custom__">직접입력</option>
+            ${COURIER_GROUPS.map(g => `
+              <optgroup label="${escapeHtml(g.label)}">
+                ${g.options.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+              </optgroup>
+            `).join('')}
+          </select>
+          <input type="text" style="width:100%; margin-top:6px; display:none;" data-var="택배사-custom" placeholder="택배사명을 입력하세요" />
+        </div>
+      `;
+    }
     return `
       <div class="field ${isRequired ? 'required' : ''}">
         <label>${escapeHtml(name)}</label>
@@ -492,18 +519,43 @@ function renderVarsForm(tpl){
   document.getElementById('varsPanel').style.display = 'block';
   document.getElementById('resultPanel').style.display = 'block';
 
-  form.querySelectorAll('input').forEach(inp => {
+  // 택배사 드롭다운에서 "직접입력" 골랐을 때 텍스트칸 보여주기
+  const courierSelect = form.querySelector('select[data-var="택배사"]');
+  if (courierSelect) {
+    const customInput = form.querySelector('input[data-var="택배사-custom"]');
+    courierSelect.addEventListener('change', () => {
+      customInput.style.display = courierSelect.value === '__custom__' ? 'block' : 'none';
+      updateResult(tpl, varNames);
+    });
+    customInput.addEventListener('input', () => updateResult(tpl, varNames));
+  }
+
+  form.querySelectorAll('input[type="text"]:not([data-var$="-custom"]), select').forEach(inp => {
+    if (inp.dataset.var === '택배사') return; // 위에서 이미 리스너 등록함
     inp.addEventListener('input', () => updateResult(tpl, varNames));
   });
   updateResult(tpl, varNames);
+}
+
+function getFieldValue(form, name){
+  if (name === '택배사') {
+    const sel = form.querySelector('select[data-var="택배사"]');
+    if (!sel) return '';
+    if (sel.value === '__custom__') {
+      const custom = form.querySelector('input[data-var="택배사-custom"]');
+      return custom ? custom.value.trim() : '';
+    }
+    return sel.value;
+  }
+  const inp = form.querySelector(`input[data-var="${CSS.escape(name)}"]`);
+  return inp ? inp.value.trim() : '';
 }
 
 function updateResult(tpl, varNames){
   const form = document.getElementById('varsForm');
   const values = {};
   varNames.forEach(name => {
-    const inp = form.querySelector(`input[data-var="${CSS.escape(name)}"]`);
-    values[name] = inp ? inp.value.trim() : '';
+    values[name] = getFieldValue(form, name);
   });
 
   let result = tpl.body;
@@ -572,7 +624,7 @@ window.insertVarAtCursor = function(label){
 };
 
 document.getElementById('newTemplateBtn').addEventListener('click', () => {
-  if (!getEditor()) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
+  if (!getEditor()) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
   state.editingTemplate = null;
   document.getElementById('editModalTitle').textContent = '새 템플릿';
   document.getElementById('editName').value = '';
@@ -583,7 +635,7 @@ document.getElementById('newTemplateBtn').addEventListener('click', () => {
 });
 
 window.openEditModal = function(id){
-  if (!getEditor()) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
+  if (!getEditor()) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
   const tpl = state.templates.find(t => t.id === id);
   if (!tpl) return;
   state.editingTemplate = tpl;
@@ -602,7 +654,7 @@ document.getElementById('closeEditModal').addEventListener('click', () => {
 
 document.getElementById('saveTemplateBtn').addEventListener('click', async () => {
   const editor = getEditor();
-  if (!editor) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
+  if (!editor) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
 
   const name = document.getElementById('editName').value.trim();
   const body = document.getElementById('editBody').value.trim();
@@ -663,7 +715,7 @@ async function refreshTemplates(){
 
 // ── 이력 모달 ──
 window.openHistoryModal = async function(templateId){
-  if (!getEditor()) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
+  if (!getEditor()) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
   document.getElementById('historyModalBg').style.display = 'flex';
   document.getElementById('historyList').innerHTML = '<div class="empty">불러오는 중...</div>';
 
@@ -693,7 +745,7 @@ document.getElementById('closeHistoryModal').addEventListener('click', () => {
 
 window.restoreVersion = async function(versionId, templateId){
   const editor = getEditor();
-  if (!editor) { alert('먼저 상단에서 접속자를 선택해주세요.'); return; }
+  if (!editor) { alert('먼저 상단에서 내 이름을 선택해주세요.'); return; }
   if (!confirm('이 버전으로 되돌릴까요? 현재 내용은 이력에 남아있어 나중에 다시 복구할 수 있어요.')) return;
 
   const res = await fetch(API.restore, {
